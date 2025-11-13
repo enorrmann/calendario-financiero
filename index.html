@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calendario Financiero (sin FullCalendar)</title>
+  <style>
+    :root {
+      --bg: #07121a;
+      --card: #0b1720;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --green: #16a34a;
+      --red: #ef4444
+    }
+
+    body {
+      font-family: Inter, system-ui, Arial;
+      background: var(--bg);
+      color: #fff;
+      margin: 0;
+      padding: 18px
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    input,
+    select,
+    button {
+      background: var(--card);
+      color: #fff;
+      border: 1px solid #122033;
+      padding: 6px;
+      border-radius: 6px
+    }
+
+    button.primary {
+      background: var(--accent);
+      border: none;
+      cursor: pointer
+    }
+
+    button.danger {
+      background: var(--red);
+      border: none;
+      cursor: pointer
+    }
+
+    .calendar-wrap {
+      margin-top: 12px;
+      background: var(--card);
+      padding: 12px;
+      border-radius: 8px
+    }
+
+    .cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px
+    }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-bottom: 6px
+    }
+
+    .weekday {
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px
+    }
+
+    .day {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      padding: 8px;
+      border-radius: 8px;
+      min-height: 84px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.03)
+    }
+
+    .day.other {
+      opacity: 0.45
+    }
+
+    .day .date {
+      font-weight: 700
+    }
+
+    .events {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .evt {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer
+    }
+
+    .evt .lbl {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 6px
+    }
+
+    .neg {
+      color: var(--red)
+    }
+
+    .balance-inline {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .balance-inline.neg {
+      color: var(--red)
+    }
+
+
+    .day.in-debt {
+      background: rgba(239, 68, 68, 0.12) !important
+    }
+
+    .summary {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--card);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px
+    }
+
+    td,
+    th {
+      padding: 6px;
+      border-bottom: 1px solid #122033;
+      text-align: left;
+      font-size: 13px
+    }
+
+    /* modal */
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999
+    }
+
+    .modal {
+      background: var(--card);
+      padding: 14px;
+      border-radius: 8px;
+      width: 360px
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .today {
+      border: 2px solid #00b4ff;
+      box-shadow: 0 0 6px #00b4ff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Calendario Financiero</h1>
+        <div class="small">Click en una fecha para agregar/editar. Monto negativo = gasto.</div>
+      </div>
+
+      <div class="controls">
+        
+        <label class="small">Saldo inicial (mes):</label>
+        <input id="initial" type="number" step="0.01" style="width:120px">
+        <label class="small">Mostrar saldo diario</label>
+        <input id="prefShow" type="checkbox">
+        <label class="small">Inline</label>
+        <input id="prefInline" type="checkbox">
+        <label class="small">Modo continuo</label>
+        <input id="prefContinuous" type="checkbox">
+        <button id="exportBtn" class="primary">Exportar JSON</button>
+        <button id="importBtn">Importar JSON</button>
+        <input id="fileImport" type="file" accept="application/json" style="display:none">
+        <button id="clearBtn" class="danger">Borrar todos los datos</button>
+      </div>
+    </header>
+
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <div>
+          <button id="prev">«</button>
+          <button id="today">Hoy</button>
+          <button id="next">»</button>
+        </div>
+        <div style="font-weight:700" id="monthLabel"></div>
+        <div></div>
+      </div>
+
+      <div class="weekdays">
+        <div class="weekday">Dom</div>
+        <div class="weekday">Lun</div>
+        <div class="weekday">Mar</div>
+        <div class="weekday">Mié</div>
+        <div class="weekday">Jue</div>
+        <div class="weekday">Vie</div>
+        <div class="weekday">Sáb</div>
+      </div>
+
+      <div id="grid" class="grid"></div>
+    </div>
+
+    <div class="summary" id="summary">
+      <div>Saldo inicial: <strong id="viewInitial">0.00</strong></div>
+      <div>Saldo final: <strong id="viewFinal">0.00</strong></div>
+      <div>Eventos: <strong id="viewCount">0</strong></div>
+    </div>
+
+    <div id="dailySummary">
+      <h3 style="margin-top:12px">Resumen diario</h3>
+      <table id="dailyTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Ingresos</th>
+            <th>Gastos</th>
+            <th>Saldo acumulado</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- modal -->
+  <div id="backdrop" class="backdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">Agregar / Editar evento</h3>
+      <label>Fecha</label>
+      <input id="evtDate" type="date" style="width:100%">
+      <label>Monto (negativo = gasto)</label>
+      <input id="evtAmt" type="number" step="0.01" style="width:100%">
+      <label>Descripción</label>
+      <input id="evtDesc" type="text" style="width:100%">
+      <div style="margin-top:12px;text-align:right">
+        <button id="evtDelete" class="danger" style="display:none">Eliminar</button>
+        <button id="evtCancel">Cancelar</button>
+        <button id="evtSave" class="primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* English comments in code (user preference). */
+    /* State & persistence */
+    const LS_KEY = 'fin_calendar_no_fc_v1';
+    const defaults = {
+      initial: 0,
+      events: [], // {id, date: 'YYYY-MM-DD', amount: number, desc}
+      prefs: { showDaily: true, inline: true, continuous: true }
+    };
+    let state = { ...defaults };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) state = JSON.parse(raw);
+        else state = { ...defaults };
+      } catch (e) { console.error('loadState', e); state = { ...defaults }; }
+    }
+    function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+    /* Utilities */
+    const $ = id => document.getElementById(id);
+    const pad = n => String(n).padStart(2, '0');
+    const fmtDateArg = d => { /* 'YYYY-MM-DD' -> 'dd/mm/yyyy' */ const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; };
+    const fmtMoney = n => Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    /* DOM refs */
+    const grid = $('grid');
+    const monthLabel = $('monthLabel');
+    const prevBtn = $('prev'), nextBtn = $('next'), todayBtn = $('today');
+    const initialEl = $('initial');
+    const prefShow = $('prefShow'), prefInline = $('prefInline'), prefContinuous = $('prefContinuous');
+    const exportBtn = $('exportBtn'), importBtn = $('importBtn'), fileImport = $('fileImport'), clearBtn = $('clearBtn');
+    const viewInitial = $('viewInitial'), viewFinal = $('viewFinal'), viewCount = $('viewCount');
+    const dailyBody = document.querySelector('#dailyTable tbody');
+    /* Modal refs */
+    const backdrop = $('backdrop'), evtDate = $('evtDate'), evtAmt = $('evtAmt'), evtDesc = $('evtDesc'), evtSave = $('evtSave'), evtCancel = $('evtCancel'), evtDelete = $('evtDelete');
+
+    let current = new Date(); // displayed month
+    let balances = {}; // map YYYY-MM-DD -> closing balance
+    let editingId = null;
+
+    /* Load saved state and apply UI */
+    loadState();
+    initialEl.value = state.initial || 0;
+    prefShow.checked = state.prefs.showDaily;
+    prefInline.checked = state.prefs.inline;
+    prefContinuous.checked = state.prefs.continuous;
+
+    /* Month navigation and render */
+    function setMonthLabel(d) {
+      const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      monthLabel.textContent = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+
+    function buildCalendar() {
+      grid.innerHTML = '';
+      setMonthLabel(current);
+      const first = startOfMonth(current);
+      const last = endOfMonth(current);
+      const firstWeekday = first.getDay(); // 0=Sun
+      const daysInMonth = last.getDate();
+
+      // previous month's trailing days
+      const prevLast = new Date(current.getFullYear(), current.getMonth(), 0).getDate();
+      for (let i = 0; i < firstWeekday; i++) {
+        const dayNum = prevLast - (firstWeekday - 1) + i;
+        const el = makeDayCell(null, dayNum, true); grid.appendChild(el);
+      }
+      // current month days
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${current.getFullYear()}-${pad(current.getMonth() + 1)}-${pad(d)}`;
+        const el = makeDayCell(dateStr, d, false); grid.appendChild(el);
+      }
+      // trailing next month blanks to fill 7xN grid
+      const totalCells = grid.children.length;
+      const toAdd = (7 - (totalCells % 7)) % 7;
+      for (let i = 1; i <= toAdd; i++) { grid.appendChild(makeDayCell(null, i, true)); }
+
+      // compute balances for visible range
+      const viewStart = grid.querySelector('.day:not(.other)')?.getAttribute('data-date');
+      const lastCell = Array.from(grid.querySelectorAll('.day:not(.other)')).pop();
+      const viewEnd = lastCell ? lastCell.getAttribute('data-date') : null;
+      recomputeBalancesAndMark(viewStart, viewEnd);
+      renderEventsInGrid(); // show events within cells
+      updateSummaryAndTable();
+    }
+
+    function makeDayCell(dateStr, dnum, other) {
+      const el = document.createElement('div'); 
+      el.className = 'day' + (other ? ' other' : ''); if (!other && dateStr) el.setAttribute('data-date', dateStr); const today = new Date(); const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`; if (dateStr === todayStr) el.classList.add('today'); const dateDiv = document.createElement('div'); dateDiv.className = 'date'; dateDiv.textContent = dnum; el.appendChild(dateDiv); const evWrap = document.createElement('div'); evWrap.className = 'events'; el.appendChild(evWrap); el.addEventListener('click', (e) => { if (e.target.closest('.evt')) return; if (other) return; openModal(dateStr, null); }); return el;
+    }
+
+    /* render events inside each day cell */
+    function renderEventsInGrid() {
+      // clear existing per cell
+      document.querySelectorAll('.day').forEach(cell => {
+        const evWrap = cell.querySelector('.events');
+        if (evWrap) evWrap.innerHTML = '';
+        const inline = cell.querySelector('.balance-inline'); if (inline) inline.remove();
+      });
+
+      // add event elements
+      state.events.forEach(ev => {
+        const cell = document.querySelector(`.day[data-date="${ev.date}"]`);
+        if (!cell) return;
+        const evEl = document.createElement('div'); evEl.className = 'evt'; 
+        evEl.style.background = ev.amount >= 0 ? 'linear-gradient(90deg, rgba(16,185,129,0.06), transparent)' : 'linear-gradient(90deg, rgba(239,68,68,0.06), transparent)';
+        const lbl = document.createElement('div'); lbl.className = 'lbl';lbl.className = 'lbl neg'; lbl.textContent = `${ev.desc} `;
+        const amt = document.createElement('div'); amt.textContent = (ev.amount >= 0 ? '+' : '-') + ' ' + Math.abs(ev.amount).toFixed(2);
+        evEl.appendChild(lbl); 
+        evEl.appendChild(amt);
+        // click event edit
+        evEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openModal(ev.date, ev);
+        });
+        cell.querySelector('.events').appendChild(evEl);
+      });
+
+      // insert inline balances if pref and computed
+      if (state.prefs.showDaily && state.prefs.inline) {
+        document.querySelectorAll('.day[data-date]').forEach(cell => {
+          const ds = cell.getAttribute('data-date');
+          const bal = balances[ds];
+          if (bal !== undefined) {
+            const span = document.createElement('div'); span.className = 'balance-inline' + (bal < 0 ? ' neg' : '');
+            span.textContent = fmtMoney(bal);
+            cell.appendChild(span);
+          }
+        });
+      }
+
+      // mark debt days visually
+      document.querySelectorAll('.day[data-date]').forEach(cell => {
+        const ds = cell.getAttribute('data-date');
+        const bal = balances[ds];
+        if (bal !== undefined && bal < 0) cell.classList.add('in-debt'); else cell.classList.remove('in-debt');
+        // tooltip if prefer tooltip
+        if (state.prefs.showDaily && !state.prefs.inline) {
+          if (bal !== undefined) cell.title = `Saldo cierre: ${fmtMoney(bal)}`; else cell.title = '';
+        } else if (!state.prefs.showDaily) {
+          cell.title = '';
+        }
+      });
+    }
+
+    /* recompute balances for visible range or full range depending on prefs */
+    function recomputeBalancesAndMark(viewStart, viewEnd) {
+      balances = {};
+      if (!viewStart || !viewEnd) return;
+      // compute date range inclusive
+      const start = new Date(viewStart + 'T00:00:00');
+      const end = new Date(viewEnd + 'T00:00:00');
+
+      // determine computeStart for continuous mode
+      let computeStart = viewStart;
+      if (state.prefs.continuous && state.events.length) {
+        const earliest = state.events.reduce((a, b) => a.date < b.date ? a : b).date;
+        if (earliest < computeStart) computeStart = earliest;
+      } else {
+        // independent per month: computeStart is first day of displayed month
+        computeStart = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-01`;
+      }
+
+      // initial accum: for continuous, start initial + sum(events < computeStart); else initial
+      let accum = Number(state.initial) || 0;
+      if (state.prefs.continuous) {
+        state.events.forEach(ev => { if (ev.date < computeStart) accum += Number(ev.amount); });
+      } else {
+        accum = Number(state.initial) || 0;
+      }
+
+      // build a map of events by date
+      const map = {};
+      state.events.forEach(ev => { (map[ev.date] = map[ev.date] || []).push(ev); });
+
+      // iterate day by day from computeStart to end inclusive
+      const startIter = new Date(computeStart + 'T00:00:00');
+      for (let d = new Date(startIter); d <= end; d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().slice(0, 10);
+        const todays = map[ds] || [];
+        let daySum = 0;
+        todays.forEach(e => daySum += Number(e.amount));
+        accum += daySum;
+        // only store balances for days >= viewStart (we want balances for visible days); but storing all is fine
+        balances[ds] = accum;
+      }
+    }
+
+    /* update summary and daily table */
+    function updateSummaryAndTable() {
+      viewInitial.textContent = fmtMoney(Number(state.initial) || 0);
+      // final balance = closing balance at last visible day if computed
+      const visibleDays = Array.from(document.querySelectorAll('.day[data-date]')).map(el => el.getAttribute('data-date'));
+      const lastVisible = visibleDays.length ? visibleDays[visibleDays.length - 1] : null;
+      const final = lastVisible && balances[lastVisible] !== undefined ? balances[lastVisible] : (Object.values(balances).length ? Object.values(balances).slice(-1)[0] : Number(state.initial) || 0);
+      viewFinal.textContent = fmtMoney(final);
+      viewCount.textContent = state.events.length;
+
+      // daily table: range depends on continuous pref
+      let tableStart = null, tableEnd = null;
+      if (state.prefs.continuous && state.events.length) {
+        const sorted = state.events.slice().sort((a, b) => a.date.localeCompare(b.date));
+        tableStart = sorted[0].date; tableEnd = sorted[sorted.length - 1].date;
+      } else {
+        // current visible month
+        const cells = Array.from(document.querySelectorAll('.day[data-date]')).map(c => c.getAttribute('data-date'));
+        tableStart = cells[0]; tableEnd = cells[cells.length - 1];
+      }
+      if (!tableStart) { dailyBody.innerHTML = '<tr><td colspan="4">Sin datos</td></tr>'; return; }
+
+      // ensure balances cover the table range
+      const endNext = new Date(new Date(tableEnd + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      recomputeBalancesAndMark(tableStart, endNext);
+
+      // build rows
+      const rows = [];
+      for (let d = new Date(tableStart + 'T00:00:00'); d <= new Date(tableEnd + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().slice(0, 10);
+        const inc = state.events.filter(e => e.date === ds && e.amount >= 0).reduce((s, e) => s + Number(e.amount), 0);
+        const exp = state.events.filter(e => e.date === ds && e.amount < 0).reduce((s, e) => s + Math.abs(Number(e.amount)), 0);
+        const bal = balances[ds] !== undefined ? balances[ds] : null;
+        const colorStyle = bal !== null && bal < 0 ? 'color:' + 'var(--red)' : 'color:var(--muted)';
+        rows.push(`<tr><td>${fmtDateArg(ds)}</td><td>${fmtMoney(inc)}</td><td>${fmtMoney(exp)}</td><td style="${colorStyle}">${bal !== null ? fmtMoney(bal) : '-'}</td></tr>`);
+      }
+      dailyBody.innerHTML = rows.join('') || '<tr><td colspan="4">Sin datos</td></tr>';
+    }
+
+    /* modal logic for add/edit */
+    function openModal(dateStr, eventObj) {
+      backdrop.style.display = 'flex';
+      evtDate.value = dateStr || '';
+      evtAmt.value = eventObj ? eventObj.amount : '';
+      evtDesc.value = eventObj ? eventObj.desc : '';
+      editingId = eventObj ? eventObj.id : null;
+      evtDelete.style.display = editingId ? 'inline-block' : 'none';
+    }
+    function closeModal() {
+      backdrop.style.display = 'none';
+      editingId = null;
+    }
+    /* save / delete handlers */
+    evtCancel.addEventListener('click', () => closeModal());
+    evtDelete.addEventListener('click', () => {
+      if (!editingId) return;
+      if (!confirm('Eliminar este evento?')) return;
+      state.events = state.events.filter(e => String(e.id) !== String(editingId));
+      saveState();
+      buildCalendar();
+      closeModal();
+    });
+    evtSave.addEventListener('click', () => {
+      const d = evtDate.value;
+      const amt = Number(evtAmt.value);
+      const desc = (evtDesc.value || '').trim();
+      if (!d || !desc || isNaN(amt)) return alert('Complete fecha, monto y descripción correctamente.');
+      if (editingId) {
+        const ev = state.events.find(e => String(e.id) === String(editingId));
+        if (ev) { ev.date = d; ev.amount = amt; ev.desc = desc; }
+      } else {
+        state.events.push({ id: Date.now().toString(), date: d, amount: amt, desc });
+      }
+      saveState();
+      buildCalendar();
+      closeModal();
+    });
+    /* click outside modal to close */
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+
+    /* header controls */
+    prevBtn.addEventListener('click', () => { current.setMonth(current.getMonth() - 1); buildCalendar(); });
+    nextBtn.addEventListener('click', () => { current.setMonth(current.getMonth() + 1); buildCalendar(); });
+    todayBtn.addEventListener('click', () => { current = new Date(); buildCalendar(); });
+
+    /* prefs and persistence */
+    initialEl.addEventListener('change', () => { state.initial = Number(initialEl.value) || 0; saveState(); buildCalendar(); });
+    prefShow.addEventListener('change', () => { state.prefs.showDaily = prefShow.checked; saveState(); buildCalendar(); });
+    prefInline.addEventListener('change', () => { state.prefs.inline = prefInline.checked; saveState(); buildCalendar(); });
+    prefContinuous.addEventListener('change', () => { state.prefs.continuous = prefContinuous.checked; saveState(); buildCalendar(); });
+
+    /* exports/imports/clear */
+    exportBtn.addEventListener('click', () => {
+      const payload = { initial: state.initial, events: state.events, prefs: state.prefs };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'fin_calendar_export.json'; a.click();
+    });
+    importBtn.addEventListener('click', () => fileImport.click());
+    fileImport.addEventListener('change', (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        try {
+          const j = JSON.parse(ev.target.result);
+          if (!j.events || !Array.isArray(j.events)) throw new Error('Formato inválido');
+          state.initial = Number(j.initial) || 0;
+          state.events = j.events.map(it => ({ id: it.id || Date.now().toString(), date: it.date, amount: Number(it.amount) || 0, desc: it.desc || '' }));
+          state.prefs = j.prefs || state.prefs;
+          saveState();
+          // apply UI prefs
+          initialEl.value = state.initial;
+          prefShow.checked = state.prefs.showDaily;
+          prefInline.checked = state.prefs.inline;
+          prefContinuous.checked = state.prefs.continuous;
+          buildCalendar();
+        } catch (err) { alert('JSON inválido: ' + err.message); }
+      };
+      r.readAsText(f);
+      fileImport.value = '';
+    });
+    clearBtn.addEventListener('click', () => {
+      if (!confirm('¿Borrar todos los datos y preferencias? Esta acción no se puede deshacer.')) return;
+      localStorage.removeItem(LS_KEY);
+      state = { ...defaults };
+      // apply defaults to UI
+      initialEl.value = state.initial;
+      prefShow.checked = state.prefs.showDaily;
+      prefInline.checked = state.prefs.inline;
+      prefContinuous.checked = state.prefs.continuous;
+      buildCalendar();
+    });
+
+    /* initial render */
+    buildCalendar();
+
+
+
+
+  </script>
+</body>
+
+</html>

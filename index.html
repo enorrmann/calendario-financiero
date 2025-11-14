@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Calendario Financiero (sin FullCalendar)</title>
+  <title>Calendario Financiero</title>
   <style>
     :root {
       --bg: #07121a;
@@ -441,7 +441,7 @@
         const evEl = document.createElement('div'); evEl.className = 'evt';
         evEl.style.background = ev.amount >= 0 ? 'linear-gradient(90deg, rgba(16,185,129,0.06), transparent)' : 'linear-gradient(90deg, rgba(239,68,68,0.06), transparent)';
         const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = `${ev.desc} `;
-        const amt = document.createElement('div'); amt.textContent = (ev.amount >= 0 ? '+' : '-') + ' ' + Math.abs(ev.amount).toFixed(2);
+        const amt = document.createElement('div'); amt.textContent = Math.abs(ev.amount).toFixed(2);
         if (ev.amount < 0) {
           amt.className = 'neg';
         } else {

@@ -305,12 +305,19 @@
   <div id="backdrop" class="backdrop">
     <div class="modal" role="dialog" aria-modal="true">
       <h3 id="modalTitle">Agregar / Editar evento</h3>
+      
       <label>Fecha</label>
       <input id="evtDate" type="date" style="width:100%">
-      <label>Monto (negativo = gasto)</label>
-      <input id="evtAmt" type="number" step="0.01" style="width:100%">
-      <label>Descripción</label>
-      <input id="evtDesc" type="text" style="width:100%">
+      
+    <label>Monto (negativo = gasto)</label>
+    <input id="evtAmt" type="number" step="0.01" style="width:100%"
+      onkeydown="if(event.key==='Enter'){ event.preventDefault(); document.getElementById('evtDesc').focus(); }">
+
+    <label>Descripción</label>
+    <input id="evtDesc" type="text" style="width:100%"
+      onkeydown="if(event.key==='Enter'){ event.preventDefault(); document.getElementById('evtSave').click(); }">
+      
+      
       <div style="margin-top:12px;text-align:right">
         <button id="evtDelete" class="danger" style="display:none">Eliminar</button>
         <button id="evtCancel">Cancelar</button>

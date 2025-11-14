@@ -585,6 +585,7 @@
       evtDesc.value = eventObj ? eventObj.desc : '';
       editingId = eventObj ? eventObj.id : null;
       evtDelete.style.display = editingId ? 'inline-block' : 'none';
+      document.getElementById('evtAmt').focus();
     }
     function closeModal() {
       backdrop.style.display = 'none';

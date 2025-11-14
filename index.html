@@ -441,7 +441,8 @@
         const evEl = document.createElement('div'); evEl.className = 'evt';
         evEl.style.background = ev.amount >= 0 ? 'linear-gradient(90deg, rgba(16,185,129,0.06), transparent)' : 'linear-gradient(90deg, rgba(239,68,68,0.06), transparent)';
         const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = `${ev.desc} `;
-        const amt = document.createElement('div'); amt.textContent = Math.abs(ev.amount).toFixed(0);
+        const amt = document.createElement('div'); amt.textContent = fmtMoney(ev.amount);
+
         if (ev.amount < 0) {
           amt.className = 'neg';
         } else {

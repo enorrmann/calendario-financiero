@@ -426,8 +426,11 @@
         if (!cell) return;
         const evEl = document.createElement('div'); evEl.className = 'evt'; 
         evEl.style.background = ev.amount >= 0 ? 'linear-gradient(90deg, rgba(16,185,129,0.06), transparent)' : 'linear-gradient(90deg, rgba(239,68,68,0.06), transparent)';
-        const lbl = document.createElement('div'); lbl.className = 'lbl';lbl.className = 'lbl neg'; lbl.textContent = `${ev.desc} `;
+        const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = `${ev.desc} `;
         const amt = document.createElement('div'); amt.textContent = (ev.amount >= 0 ? '+' : '-') + ' ' + Math.abs(ev.amount).toFixed(2);
+        if (ev.amount < 0){
+          amt.className = 'neg';
+        }
         evEl.appendChild(lbl); 
         evEl.appendChild(amt);
         // click event edit
